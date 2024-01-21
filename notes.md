@@ -63,4 +63,27 @@ const body = {
         "sessionId": "UUID"
     }
 }
+
+// POST https://services.get.cbord.com/GETServices/services/json/authentication
+// Returns a valid session ID that isn't associated with a registered user, for use with methods that require a valid/active session but would be run during the login process, like the `retrieveLookupList` method for getting registered organizations
+const body = {
+    "method": "authenticateSystem",
+    "params": {
+        "systemCredentials": {
+            "domain": "",
+            "userName": "get_mobile",
+            "password": "NOTUSED"
+        }
+    }
+}
+
+// POST https://services.get.cbord.com/GETServices/services/json/institution
+// Returns a list of friendly and short names for registered organizations
+const body = {
+    "method": "retrieveLookupList",
+    "params": {
+        "sessionId": "UUID"
+    }
+}
+
 ```
