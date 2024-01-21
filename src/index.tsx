@@ -7,8 +7,7 @@ const fundsOverviewPartialURL = `https://get.cbord.com/utdallas/full/funds_overv
 const fundsTransactionHistoryPartialURL = `https://get.cbord.com/utdallas/full/funds_transaction_history_partial.php`;
 
 const headers = {
-  Cookie:
-    "no_login_guest_user=; AWSELB=<truncated>; PHPSESSID=<truncated>; _shibsession_<truncated>>=_<truncated>",
+  Cookie: "no_login_guest_user=; AWSELB=<truncated>; PHPSESSID=<truncated>; _shibsession_<truncated>>=_<truncated>",
   "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
 };
 
@@ -25,9 +24,8 @@ export default function Command() {
   const fundsOverview = useFetch<string>(fundsOverviewPartialURL, {
     method: "POST",
     headers: headers,
-    body
+    body,
   });
-
 
   const transactionHistory = useFetch<string>(fundsTransactionHistoryPartialURL, {
     method: "POST",
@@ -47,51 +45,55 @@ export default function Command() {
     console.log(fundsOverview.data);
     // const fundsOverviewHTML = parse(fundsOverview.data);
     // const transactionHistoryHTML = parse(transactionHistory.data);
-    
+
     // const b1 = tableToJson(fundsOverviewHTML);
     // const b2 = tableToJson(transactionHistoryHTML);
     // console.log({b1, b2});
 
     const sample = {
       b1: [
-        { 'Account Name': 'Meal Money', Balance: '$100.00' },
-        { 'Account Name': 'Comet Cash', Balance: '$0.09' },
-        { 'Account Name': 'Meal Swipe', Balance: '11' },
-        { 'Account Name': 'Guest Pass', Balance: '2' }
+        { "Account Name": "Meal Money", Balance: "$100.00" },
+        { "Account Name": "Comet Cash", Balance: "$0.09" },
+        { "Account Name": "Meal Swipe", Balance: "11" },
+        { "Account Name": "Guest Pass", Balance: "2" },
       ],
       b2: [
         {
-          'Account Name': 'Meal Swipe',
-          'Date & Time': 'January 17, 2024 | 9:47AM',
-          'Activity Details': 'FS Dining West Epic III 2',
-          'Amount ($ / Meals)': '- 1'
+          "Account Name": "Meal Swipe",
+          "Date & Time": "January 17, 2024 | 9:47AM",
+          "Activity Details": "FS Dining West Epic III 2",
+          "Amount ($ / Meals)": "- 1",
         },
         {
-          'Account Name': 'Meal Swipe',
-          'Date & Time': 'January 16, 2024 | 10:05PM',
-          'Activity Details': 'FS Taco Bell Cantina',
-          'Amount ($ / Meals)': '- 1'
+          "Account Name": "Meal Swipe",
+          "Date & Time": "January 16, 2024 | 10:05PM",
+          "Activity Details": "FS Taco Bell Cantina",
+          "Amount ($ / Meals)": "- 1",
         },
         {
-          'Account Name': 'Meal Swipe',
-          'Date & Time': 'January 16, 2024 | 4:43PM',
-          'Activity Details': 'Simphony - Dining Hall West',
-          'Amount ($ / Meals)': '- 1'
+          "Account Name": "Meal Swipe",
+          "Date & Time": "January 16, 2024 | 4:43PM",
+          "Activity Details": "Simphony - Dining Hall West",
+          "Amount ($ / Meals)": "- 1",
         },
         {
-          'Account Name': 'Meal Swipe',
-          'Date & Time': 'January 15, 2024 | 2:33AM',
-          'Activity Details': 'End of Day Console',
-          'Amount ($ / Meals)': '- 12'
-        }
-      ]
-    }
-
-
+          "Account Name": "Meal Swipe",
+          "Date & Time": "January 15, 2024 | 2:33AM",
+          "Activity Details": "End of Day Console",
+          "Amount ($ / Meals)": "- 12",
+        },
+      ],
+    };
 
     return "rahhh";
-  }, [fundsOverview.data, transactionHistory.data, fundsOverview.error, transactionHistory.error, fundsOverview.isLoading, transactionHistory.isLoading]);
+  }, [
+    fundsOverview.data,
+    transactionHistory.data,
+    fundsOverview.error,
+    transactionHistory.error,
+    fundsOverview.isLoading,
+    transactionHistory.isLoading,
+  ]);
 
   return <Detail markdown={md} />;
-
 }

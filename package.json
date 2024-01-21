@@ -1,8 +1,8 @@
 {
   "$schema": "https://www.raycast.com/schemas/extension.json",
-  "name": "utd-get",
-  "title": "UTD GET",
-  "description": "",
+  "name": "raycast-cbord-get",
+  "title": "CBORD Get",
+  "description": "Check your CBORD GET account for available meal swipes and remaining balance.",
   "icon": "command-icon.png",
   "author": "jasonaa",
   "license": "MIT",
@@ -10,13 +10,14 @@
     {
       "name": "index",
       "title": "View Swipes",
-      "description": "",
+      "description": "View your available meal swipes and remaining balance",
       "mode": "view"
     }
   ],
   "dependencies": {
     "@raycast/api": "^1.65.1",
     "@raycast/utils": "^1.10.1",
+    "ky": "^1.2.0",
     "node-html-parser": "^6.1.12"
   },
   "devDependencies": {
@@ -25,6 +26,7 @@
     "@types/react": "18.2.27",
     "eslint": "^8.51.0",
     "prettier": "^3.0.3",
+    "type-fest": "^4.9.0",
     "typescript": "^5.2.2"
   },
   "scripts": {
