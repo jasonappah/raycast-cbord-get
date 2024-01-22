@@ -18,7 +18,7 @@
       "title": "Accounts",
       "name": "overview",
       "description": "View your remaining balances",
-      "interval": "10m"
+      "interval": "2h"
     }
   ],
   "dependencies": {
