@@ -9,15 +9,16 @@
   "commands": [
     {
       "name": "index",
-      "title": "View Swipes",
-      "description": "View your available meal swipes and remaining balance",
+      "title": "Account Details",
+      "description": "View your remaining balances and transactions",
       "mode": "view"
     },
     {
       "mode": "no-view",
-      "title": "Swipes Overview",
+      "title": "Accounts",
       "name": "overview",
-      "description": "View your available meal swipes and remaining balance inline"
+      "description": "View your remaining balances",
+      "interval": "10m"
     }
   ],
   "dependencies": {
