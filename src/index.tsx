@@ -1,99 +1,111 @@
-import { Detail } from "@raycast/api";
-import { useFetch } from "@raycast/utils";
-import parse, { HTMLElement } from "node-html-parser";
-import { useMemo } from "react";
+import { Action, ActionPanel, Detail, Form, List, confirmAlert, open, useNavigation } from "@raycast/api";
+import * as cbord from "./cbord";
+import { useCachedPromise, useForm, usePromise } from "@raycast/utils";
 
-const fundsOverviewPartialURL = `https://get.cbord.com/utdallas/full/funds_overview_partial.php`;
-const fundsTransactionHistoryPartialURL = `https://get.cbord.com/utdallas/full/funds_transaction_history_partial.php`;
-
-const headers = {
-  Cookie: "no_login_guest_user=; AWSELB=<truncated>; PHPSESSID=<truncated>; _shibsession_<truncated>>=_<truncated>",
-  "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-};
-
-const body = "userId=<truncated>&formToken=<truncated>";
-const tableToJson = (table: HTMLElement) => {
-  const [header, ...rows] = table.querySelectorAll("tr");
-  const headerNames = header.querySelectorAll("th").map((e) => e.text);
-  const json = rows.map((e) =>
-    Object.fromEntries(e.querySelectorAll("td").map((column, index) => [headerNames[index], column.text])),
-  );
-  return json;
-};
 export default function Command() {
-  const fundsOverview = useFetch<string>(fundsOverviewPartialURL, {
-    method: "POST",
-    headers: headers,
-    body,
-  });
+  console.log("---------------------")
+  const { isLoading, data: sessionTokenIsTemporary, error } = usePromise(cbord.initSession);
 
-  const transactionHistory = useFetch<string>(fundsTransactionHistoryPartialURL, {
-    method: "POST",
-    headers: headers,
-    body,
-  });
-
-  const md = useMemo(() => {
-    if (fundsOverview.isLoading || transactionHistory.isLoading) {
-      return "Loading...";
-    }
-
-    if (fundsOverview.error || transactionHistory.error || !fundsOverview.data || !transactionHistory.data) {
-      return "Error";
-    }
-
-    console.log(fundsOverview.data);
-    // const fundsOverviewHTML = parse(fundsOverview.data);
-    // const transactionHistoryHTML = parse(transactionHistory.data);
-
-    // const b1 = tableToJson(fundsOverviewHTML);
-    // const b2 = tableToJson(transactionHistoryHTML);
-    // console.log({b1, b2});
-
-    const sample = {
-      b1: [
-        { "Account Name": "Meal Money", Balance: "$100.00" },
-        { "Account Name": "Comet Cash", Balance: "$0.09" },
-        { "Account Name": "Meal Swipe", Balance: "11" },
-        { "Account Name": "Guest Pass", Balance: "2" },
-      ],
-      b2: [
-        {
-          "Account Name": "Meal Swipe",
-          "Date & Time": "January 17, 2024 | 9:47AM",
-          "Activity Details": "FS Dining West Epic III 2",
-          "Amount ($ / Meals)": "- 1",
-        },
-        {
-          "Account Name": "Meal Swipe",
-          "Date & Time": "January 16, 2024 | 10:05PM",
-          "Activity Details": "FS Taco Bell Cantina",
-          "Amount ($ / Meals)": "- 1",
-        },
-        {
-          "Account Name": "Meal Swipe",
-          "Date & Time": "January 16, 2024 | 4:43PM",
-          "Activity Details": "Simphony - Dining Hall West",
-          "Amount ($ / Meals)": "- 1",
-        },
-        {
-          "Account Name": "Meal Swipe",
-          "Date & Time": "January 15, 2024 | 2:33AM",
-          "Activity Details": "End of Day Console",
-          "Amount ($ / Meals)": "- 12",
-        },
-      ],
-    };
-
-    return "rahhh";
-  }, [
-    fundsOverview.data,
-    transactionHistory.data,
-    fundsOverview.error,
-    transactionHistory.error,
-    fundsOverview.isLoading,
-    transactionHistory.isLoading,
-  ]);
-
-  return <Detail markdown={md} />;
+  if (error) return <Detail markdown={`# An error occurred\n\n\`\`\`\n${error.message}\n\`\`\`\n`} />;
+  if (isLoading) return <List isLoading searchBarPlaceholder="..." />;
+  if (sessionTokenIsTemporary) return <InstitutionDetail />;
+  return <AccountsView />;
 }
+
+function InstitutionDetail() {
+  const institutions = useCachedPromise(() => cbord.getInstitutions(), []);
+  const { push } = useNavigation();
+
+  return (
+    <List isLoading={institutions.isLoading} searchBarPlaceholder="Select your institution...">
+      {institutions.data?.institutions.map((institution) => (
+        <List.Item
+          key={institution.id}
+          title={institution.name}
+          actions={
+            <ActionPanel>
+              <Action
+                title="Login"
+                onAction={() => {
+                  confirmAlert({
+                    title:
+                      "Follow the instructions in the browser to login, then copy the URL of the page you are redirected to and paste it here.",
+                    dismissAction: undefined,
+                    primaryAction: {
+                      title: "Continue",
+                      onAction: () => {
+                        push(<SessionURLInput />);
+                        open(cbord.getAuthURL(institution.shortName));
+                      },
+                    },
+                  });
+                }}
+              />
+            </ActionPanel>
+          }
+        />
+      ))}
+    </List>
+  );
+}
+
+const SessionURLInput = () => {
+  const { pop } = useNavigation();
+  const form = useForm<{ sessionURL: string }>({
+    validation: {
+      sessionURL: (value) => {
+        if (!value) return "Session URL is required";
+        try {
+          const id = cbord.getSessionIdFromValidatorURL(value);
+          if (!id) return "Session URL is invalid";
+        } catch (e) {
+          return "Failed to parse session URL";
+        }
+      },
+    },
+    onSubmit: async (values) => {
+      const id = cbord.getSessionIdFromValidatorURL(values.sessionURL);
+      if (!id) throw new Error("Failed to parse session URL");
+      await cbord.setActiveSession(id, false);
+      pop();
+    },
+  });
+
+  return (
+    <Form
+      actions={
+        <ActionPanel>
+          <Action.SubmitForm title="Submit" onSubmit={form.handleSubmit} />
+        </ActionPanel>
+      }
+    >
+      <Form.PasswordField title="Session URL" placeholder="Paste URL here..." {...form.itemProps.sessionURL} />
+    </Form>
+  );
+};
+
+const AccountsView = () => {
+  const accounts = useCachedPromise(() => cbord.listAccounts(), []);
+  // const { push } = useNavigation();
+  return (
+    <List isLoading={accounts.isLoading}>
+      {accounts.data?.accounts.map((account) => (
+        <List.Item
+          key={account.id}
+          title={account.accountDisplayName}
+          accessories={[{ text: `${account.balance}` }]}
+          // actions={
+          //   <ActionPanel>
+          //     <Action
+          //       title="Show"
+          //       onAction={useCallback(() => {
+          //         push(<AccountDetail account={account} />);
+          //       }, [account])}
+          //     />
+          //   </ActionPanel>
+          // }
+        />
+      ))}
+    </List>
+  );
+};

@@ -1,11 +1,23 @@
 import { LocalStorage } from "@raycast/api";
-import ky from "ky";
 import type { PartialDeep } from "type-fest";
+import axios from "axios";
 
 const SESSION_TOKEN_STORAGE_KEY = "sessionToken";
-const getActiveSession = () => LocalStorage.getItem<string>(SESSION_TOKEN_STORAGE_KEY);
-const setActiveSession = (sessionToken: string) => LocalStorage.setItem(SESSION_TOKEN_STORAGE_KEY, sessionToken);
-const clearActiveSession = () => LocalStorage.removeItem(SESSION_TOKEN_STORAGE_KEY);
+const SESSION_TOKEN_IS_TEMPORARY_STORAGE_KEY = "sessionTokenIsTemporary";
+const getActiveSession = async () => await LocalStorage.getItem<string>(SESSION_TOKEN_STORAGE_KEY);
+const checkSessionTokenDoesNotExist = async () => (await getActiveSession()) === undefined;
+const checkSessionTokenIsTemporary = async () => {
+  const returned = await LocalStorage.getItem<0 | 1>(SESSION_TOKEN_IS_TEMPORARY_STORAGE_KEY);
+  return returned === 1;
+};
+const setActiveSession = async (sessionToken: string, sessionTokenIsTemporary: boolean) => {
+  await LocalStorage.setItem(SESSION_TOKEN_STORAGE_KEY, sessionToken);
+  await LocalStorage.setItem(SESSION_TOKEN_IS_TEMPORARY_STORAGE_KEY, sessionTokenIsTemporary ? 1 : 0);
+};
+const clearActiveSession = async () => {
+  await LocalStorage.removeItem(SESSION_TOKEN_STORAGE_KEY);
+  await LocalStorage.removeItem(SESSION_TOKEN_IS_TEMPORARY_STORAGE_KEY);
+};
 
 const getAuthURL = (cbordOrgShortName: string) =>
   `https://get.cbord.com/${cbordOrgShortName}/full/login.php?mobileapp=1`;
@@ -15,28 +27,35 @@ const getSessionIdFromValidatorURL = (url: string) => {
   return urlObject.searchParams.get("sessionId");
 };
 
-const cbord = ky.extend({
-  prefixUrl: `https://services.get.cbord.com/GETServices/services/json/`,
-  hooks: {
-    beforeRequest: [
-      (request) => {
-        request.headers.set("accept", "application/json");
-        request.headers.set("content-type", "application/json");
-      },
-    ],
-    // TODO: is there a way to throw an error if the json exception is not null?
+const cbord = axios.create({
+  method: "POST",
+
+  baseURL: `https://services.get.cbord.com/GETServices/services/json/`,
+  headers: {
+    accept: "application/json",
+    "content-type": "application/json",
   },
 });
 
-const method = <BodyParams extends Record<string, unknown>>(method: string, params?: BodyParams) => ({
-  json: {
-    method,
-    params: {
-      ...(params ?? {}),
-      sessionId: getActiveSession(),
+const method = async <BodyParams extends Record<string, unknown>>(
+  method: string,
+  params?: BodyParams,
+  includeSessionId: boolean = true,
+) => {
+  const axiosOptions = {
+    data: {
+      method,
+      params: {
+        ...(params ?? {}),
+      },
     },
-  },
-});
+  };
+  if (includeSessionId) {
+    axiosOptions.data.params.sessionId = await getActiveSession();
+  }
+  console.log(axiosOptions);
+  return axiosOptions;
+};
 
 type BaseResponse<T> =
   | {
@@ -71,8 +90,8 @@ type ListAccountsResponse = {
 };
 
 const listAccounts = async () => {
-  const accounts = await cbord.post("commerce", method("retrieveAccounts")).json<BaseResponse<ListAccountsResponse>>();
-  return accounts;
+  const accounts = (await cbord<BaseResponse<ListAccountsResponse>>("commerce", await method("retrieveAccounts"))).data;
+  return unwrapResponse(accounts);
 };
 
 type RetrieveUserResponse = {
@@ -102,8 +121,8 @@ type RetrieveUserResponse = {
   phone: string;
 };
 const retrieveUser = async () => {
-  const user = await cbord.post("user", method("retrieve")).json<BaseResponse<RetrieveUserResponse>>();
-  return user;
+  const user = (await cbord<BaseResponse<RetrieveUserResponse>>("user", await method("retrieve"))).data;
+  return unwrapResponse(user);
 };
 
 const DATE_6_MONTHS_AGO_ISO = new Date(Date.now() - 1000 * 60 * 60 * 24 * 30 * 6).toISOString();
@@ -153,26 +172,33 @@ const listRecentTransactions = async (
     },
   };
 
-  const transactions = await cbord
-    .post("commerce", method("retrieveTransactionHistoryWithinDateRange", mergedParams))
-    .json<BaseResponse<ListRecentTransactionsResponse>>();
-  return transactions;
+  const transactions = (
+    await cbord<BaseResponse<ListRecentTransactionsResponse>>(
+      "commerce",
+      await method("retrieveTransactionHistoryWithinDateRange", mergedParams),
+    )
+  ).data;
+  return unwrapResponse(transactions);
 };
 
 const createTemporarySession = async () => {
-  const session = await cbord
-    .post(
-      "session",
-      method("authenticateSystem", {
-        systemCredentials: {
-          domain: "",
-          userName: "get_mobile",
-          password: "NOTUSED",
+  const session = (
+    await cbord<BaseResponse<string>>(
+      "authentication",
+      await method(
+        "authenticateSystem",
+        {
+          systemCredentials: {
+            domain: "",
+            userName: "get_mobile",
+            password: "NOTUSED",
+          },
         },
-      }),
+        false,
+      ),
     )
-    .json<BaseResponse<string>>();
-  return session;
+  ).data;
+  return unwrapResponse(session);
 };
 
 type GetInstitutionsResponse = {
@@ -188,10 +214,42 @@ type GetInstitutionsResponse = {
   }[];
 };
 const getInstitutions = async () => {
-  const institutions = await cbord
-    .post("institution", method("retrieveLookupList"))
-    .json<BaseResponse<GetInstitutionsResponse>>();
-  return institutions;
+  const institutions = (
+    await cbord<BaseResponse<GetInstitutionsResponse>>("institution", await method("retrieveLookupList"))
+  ).data;
+  return unwrapResponse(institutions);
+};
+
+const unwrapResponse = <T>(response: BaseResponse<T>) => {
+  console.log({ response });
+  if (response.exception) {
+    throw new Error(response.exception);
+  }
+  if (!response.response) {
+    throw new Error("No response");
+  }
+  return response.response;
+};
+
+const initSession = async () => {
+  console.log("Checking if session token exists");
+  const sessionTokenDoesNotExist = await checkSessionTokenDoesNotExist();
+  console.log({ sessionTokenDoesNotExist });
+  let sessionTokenIsTemporary = false;
+  if (sessionTokenDoesNotExist) {
+    sessionTokenIsTemporary = true;
+    console.log("Creating temporary session token");
+    const sessionToken = await createTemporarySession();
+    console.log("Setting active session");
+    setActiveSession(sessionToken, true);
+    console.log("Session saved");
+  } else {
+
+      console.log("Checking if current session is temporary");
+      sessionTokenIsTemporary = await checkSessionTokenIsTemporary();
+  }
+  console.log({ sessionTokenIsTemporary });
+  return sessionTokenIsTemporary;
 };
 
 export {
@@ -205,4 +263,7 @@ export {
   getActiveSession,
   setActiveSession,
   clearActiveSession,
+  checkSessionTokenDoesNotExist as sessionTokenDoesNotExist,
+  checkSessionTokenIsTemporary as sessionTokenIsTemporary,
+  initSession,
 };

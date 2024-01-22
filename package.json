@@ -12,13 +12,18 @@
       "title": "View Swipes",
       "description": "View your available meal swipes and remaining balance",
       "mode": "view"
+    },
+    {
+      "mode": "no-view",
+      "title": "Swipes Overview",
+      "name": "overview",
+      "description": "View your available meal swipes and remaining balance inline"
     }
   ],
   "dependencies": {
     "@raycast/api": "^1.65.1",
     "@raycast/utils": "^1.10.1",
-    "ky": "^1.2.0",
-    "node-html-parser": "^6.1.12"
+    "axios": "^1.6.5"
   },
   "devDependencies": {
     "@raycast/eslint-config": "^1.0.6",
