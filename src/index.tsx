@@ -3,7 +3,6 @@ import * as cbord from "./cbord";
 import { useCachedPromise, useForm, usePromise } from "@raycast/utils";
 
 export default function Command() {
-  console.log("---------------------")
   const { isLoading, data: sessionTokenIsTemporary, error } = usePromise(cbord.initSession);
 
   if (error) return <Detail markdown={`# An error occurred\n\n\`\`\`\n${error.message}\n\`\`\`\n`} />;

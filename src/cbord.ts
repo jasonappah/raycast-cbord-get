@@ -244,9 +244,8 @@ const initSession = async () => {
     setActiveSession(sessionToken, true);
     console.log("Session saved");
   } else {
-
-      console.log("Checking if current session is temporary");
-      sessionTokenIsTemporary = await checkSessionTokenIsTemporary();
+    console.log("Checking if current session is temporary");
+    sessionTokenIsTemporary = await checkSessionTokenIsTemporary();
   }
   console.log({ sessionTokenIsTemporary });
   return sessionTokenIsTemporary;
