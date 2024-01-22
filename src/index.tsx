@@ -1,6 +1,7 @@
 import { Action, ActionPanel, Detail, Form, List, confirmAlert, open, useNavigation } from "@raycast/api";
 import * as cbord from "./cbord";
 import { useCachedPromise, useForm, usePromise } from "@raycast/utils";
+import { useMemo } from "react";
 
 export default function Command() {
   const { isLoading, data: sessionTokenIsTemporary, error } = usePromise(cbord.initSession);
@@ -85,24 +86,38 @@ const SessionURLInput = () => {
 
 const AccountsView = () => {
   const accounts = useCachedPromise(() => cbord.listAccounts(), []);
+  const transactions = useCachedPromise(() => cbord.listRecentTransactions(), []);
+  const markdownTable = useMemo(() => {
+    let output = "# Recent Transactions\n\n";
+    if (transactions.isLoading) output += "Loading transactions...";
+    if (transactions.error) output += `Failed to load transactions: \`${transactions.error.message}\``;
+    output += "| Date | Description | Amount |\n";
+    output += "| ---- | ----------- | ------ |\n";
+    output += transactions.data?.transactions
+      .map((transaction) => `| ${new Date(transaction.actualDate).toLocaleString()} | ${transaction.locationName} | ${transaction.amount} |`)
+      .join("\n");
+    return output;
+  }, [transactions]);
+  // const detail = (
+  //   <List.Item.Detail
+  //     metadata={
+  //       <List.Item.Detail.Metadata>
+  //         <List.Item.Detail.Metadata.Label title="Type" icon="pokemon_types/grass.svg" text="Grass" />
+  //         <List.Item.Detail.Metadata.Separator />
+  //         <List.Item.Detail.Metadata.Label title="Type" icon="pokemon_types/poison.svg" text="Poison" />
+  //       </List.Item.Detail.Metadata>
+  //     }
+  //   />
+  // );
   // const { push } = useNavigation();
   return (
-    <List isLoading={accounts.isLoading}>
+    <List isLoading={accounts.isLoading} isShowingDetail>
       {accounts.data?.accounts.map((account) => (
         <List.Item
           key={account.id}
           title={account.accountDisplayName}
           accessories={[{ text: `${account.balance}` }]}
-          // actions={
-          //   <ActionPanel>
-          //     <Action
-          //       title="Show"
-          //       onAction={useCallback(() => {
-          //         push(<AccountDetail account={account} />);
-          //       }, [account])}
-          //     />
-          //   </ActionPanel>
-          // }
+          detail={<List.Item.Detail markdown={markdownTable} />}
         />
       ))}
     </List>
